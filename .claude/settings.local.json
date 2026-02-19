@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php:*)",
+      "Bash(/tmp/test_price.php << 'ENDPHP'\n<?php\n$html = file_get_contents\\(\"/tmp/spoticar_debug.html\"\\);\n\npreg_match_all\\(\n    '/<div class=\"vehicle-card\\\\b[^>]*data-vo-id=\"\\(\\\\d+\\)\"[\\\\s\\\\S]*?<div class=\"vehicle-card-content\">\\([\\\\s\\\\S]*?\\)<div class=\"vehicle-card-footer\">/u',\n    $html,\n    $cards,\n    PREG_SET_ORDER\n\\);\n\necho \"Cards found: \" . count\\($cards\\) . \"\\\\n\";\n\nif \\(count\\($cards\\) > 0\\) {\n    $content = $cards[0][2];\n    echo \"Content length: \" . strlen\\($content\\) . \"\\\\n\";\n    \n    // Check for price section\n    if \\(preg_match\\('/vehicle-card-price/', $content\\)\\) {\n        echo \"Found vehicle-card-price!\\\\n\";\n    }\n    \n    // Test price regex\n    if \\(preg_match_all\\('/\\\\b\\\\d[\\\\d\\\\s]*\\\\s?€\\\\b/u', $content, $m\\)\\) {\n        echo \"Prices found: \" . print_r\\($m[0], true\\) . \"\\\\n\";\n    }\n    \n    // Extract a portion around price\n    if \\(preg_match\\('/vehicle-card-price[\\\\s\\\\S]{0,500}/u', $content, $m\\)\\) {\n        echo \"Price section: \" . $m[0] . \"\\\\n\";\n    }\n}\nENDPHP)",
+      "Bash(curl:*)"
+    ]
+  }
+}
