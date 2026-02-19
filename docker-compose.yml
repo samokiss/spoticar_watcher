@@ -1,0 +1,8 @@
+services:
+    spoticar-watcher:
+        build: .
+        container_name: spoticar-watcher
+        volumes:
+            - ./data:/app/data
+        environment:
+            TZ: Europe/Paris

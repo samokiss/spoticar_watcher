@@ -14,7 +14,7 @@ $query = http_build_query([
 
 $url = $baseUrl . '?' . $query;
 
-$storageFile = __DIR__ . "/seen_ids.json";
+$storageFile = __DIR__ . "/data/seen_ids.json";
 
 // Configuration Telegram
 $telegramToken = "8558999978:AAFqBIOTLZsHHmigCRSlzFFmHX_d00UVdH0";
