@@ -203,47 +203,116 @@ try {
 
     $seen = loadSeen($storageFile);
     $new = [];
+    $priceChanges = [];
 
     foreach ($vehicles as $v) {
         if (!isset($seen[$v["id"]])) {
+            // Nouvelle annonce
             $new[] = $v;
             $seen[$v["id"]] = [
                 "first_seen" => date("c"),
                 "title" => $v["title"],
                 "price" => $v["price"],
                 "url" => $v["url"],
+                "price_history" => [
+                    [
+                        "price" => $v["price"],
+                        "date" => date("c"),
+                    ],
+                ],
             ];
+        } else {
+            // Annonce déjà vue - vérifier changement de prix
+            $oldPrice = $seen[$v["id"]]["price"];
+            $newPrice = $v["price"];
+
+            if ($oldPrice !== $newPrice && $newPrice !== null) {
+                $priceChanges[] = [
+                    "id" => $v["id"],
+                    "title" => $v["title"],
+                    "url" => $v["url"],
+                    "old_price" => $oldPrice,
+                    "new_price" => $newPrice,
+                    "tags" => $v["tags"] ?? [],
+                ];
+
+                // Mettre à jour le prix et l'historique
+                $seen[$v["id"]]["price"] = $newPrice;
+                if (!isset($seen[$v["id"]]["price_history"])) {
+                    $seen[$v["id"]]["price_history"] = [];
+                }
+                $seen[$v["id"]]["price_history"][] = [
+                    "price" => $newPrice,
+                    "date" => date("c"),
+                ];
+            }
         }
     }
 
     saveSeen($storageFile, $seen);
 
-    if (count($new) === 0) {
+    if (count($new) === 0 && count($priceChanges) === 0) {
         echo "RAS (" . date("c") . ")\n";
         exit;
     }
 
-    echo "🚗 NOUVELLES ANNONCES (" . count($new) . ")\n\n";
+    // Notifications pour les nouvelles annonces
+    if (count($new) > 0) {
+        echo "🚗 NOUVELLES ANNONCES (" . count($new) . ")\n\n";
 
-    foreach ($new as $v) {
-        // Affichage console
-        echo "• [" . $v["id"] . "] " . $v["title"];
-        if ($v["price"]) {
-            echo " — " . $v["price"];
-        }
-        echo "\n  " . $v["url"] . "\n\n";
+        foreach ($new as $v) {
+            // Affichage console
+            echo "• [" . $v["id"] . "] " . $v["title"];
+            if ($v["price"]) {
+                echo " — " . $v["price"];
+            }
+            echo "\n  " . $v["url"] . "\n\n";
 
-        // Notification Telegram
-        $msg = "🚗 <b>" . htmlspecialchars($v["title"]) . "</b>\n";
-        if ($v["price"]) {
-            $msg .= "💰 <b>" . $v["price"] . "</b>\n";
-        }
-        if (!empty($v["tags"])) {
-            $msg .= "📍 " . implode(" • ", $v["tags"]) . "\n";
-        }
-        $msg .= "\n<a href=\"" . $v["url"] . "\">Voir l'annonce</a>";
+            // Notification Telegram
+            $msg = "🚗 <b>" . htmlspecialchars($v["title"]) . "</b>\n";
+            if ($v["price"]) {
+                $msg .= "💰 <b>" . $v["price"] . "</b>\n";
+            }
+            if (!empty($v["tags"])) {
+                $msg .= "📍 " . implode(" • ", $v["tags"]) . "\n";
+            }
+            $msg .= "\n<a href=\"" . $v["url"] . "\">Voir l'annonce</a>";
 
-        sendTelegram($telegramToken, $telegramChatId, $msg);
+            sendTelegram($telegramToken, $telegramChatId, $msg);
+        }
+    }
+
+    // Notifications pour les changements de prix
+    if (count($priceChanges) > 0) {
+        echo "💰 CHANGEMENTS DE PRIX (" . count($priceChanges) . ")\n\n";
+
+        foreach ($priceChanges as $v) {
+            // Calcul de l'évolution
+            $oldPriceNum = (int)preg_replace('/\D/', '', $v["old_price"] ?? "0");
+            $newPriceNum = (int)preg_replace('/\D/', '', $v["new_price"] ?? "0");
+            $diff = $newPriceNum - $oldPriceNum;
+            $evolution = $diff < 0 ? "📉 baisse" : "📈 hausse";
+            $diffFormatted = number_format(abs($diff), 0, ',', ' ') . " €";
+
+            // Affichage console
+            echo "• [" . $v["id"] . "] " . $v["title"];
+            echo "\n  " . $v["old_price"] . " → " . $v["new_price"];
+            echo " (" . $evolution . " de " . $diffFormatted . ")";
+            echo "\n  " . $v["url"] . "\n\n";
+
+            // Notification Telegram
+            $msg = "💰 <b>Changement de prix!</b>\n";
+            $msg .= "🚗 " . htmlspecialchars($v["title"]) . "\n\n";
+            $msg .= "❌ Ancien: <s>" . $v["old_price"] . "</s>\n";
+            $msg .= "✅ Nouveau: <b>" . $v["new_price"] . "</b>\n";
+            $msg .= $evolution . " de <b>" . $diffFormatted . "</b>\n";
+            if (!empty($v["tags"])) {
+                $msg .= "\n📍 " . implode(" • ", $v["tags"]) . "\n";
+            }
+            $msg .= "\n<a href=\"" . $v["url"] . "\">Voir l'annonce</a>";
+
+            sendTelegram($telegramToken, $telegramChatId, $msg);
+        }
     }
 
 } catch (Exception $e) {

@@ -4,5 +4,6 @@ services:
         container_name: spoticar-watcher
         volumes:
             - ./data:/app/data
+            - ./spoticar_watch.php:/app/spoticar_watch.php
         environment:
             TZ: Europe/Paris
